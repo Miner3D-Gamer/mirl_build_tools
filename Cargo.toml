@@ -1,0 +1,27 @@
+[package]
+name = "mirl_build_tools"
+version = "0.0.0-alpha"
+edition.workspace = true
+readme.workspace = true
+repository.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+version_check = "0.9"
+terminal_size = { version = "0.4", optional = true }
+
+[lints]
+workspace = true
+
+[features]
+default = ["margin"]
+
+border = ["terminal_size"]
+margin = ["border"]
+
+force_unicode = []
+force_ascii = []
+force_code_page_437 = []
+
+_checking = []
