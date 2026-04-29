@@ -11,11 +11,37 @@ authors.workspace = true
 version_check = "0.9"
 terminal_size = { version = "0.4", optional = true }
 
+# Codec
+serde = { version = ">=1.0", optional = true, features = ["derive"] }
+bitcode = { version = "0.6.9", optional = true, default-features = false, features = [
+    "derive",
+] }
+wincode = { version = "0.4.5", optional = true,  features = [
+    "derive",
+] }
+# Enum functionality
+strum = { version = ">=0.28", optional = true, default-features = false, features = [
+    "derive",
+] }
+enum_ext = { version = "0.5.2", optional = true, default-features = false, features = [
+] }
 [lints]
 workspace = true
 
 [features]
 default = ["margin"]
+# Compatibility with ffi
+c_compatible = []
+all = ["serde", "bitcode", "wincode", "strum", "enum_ext"]
+
+serde = ["dep:serde"]
+bitcode = ["dep:bitcode"]
+wincode = ["dep:wincode"]
+
+
+# Enum extensions
+strum = ["dep:strum"]
+enum_ext = ["dep:enum_ext"]
 
 border = ["terminal_size"]
 margin = ["border"]
@@ -24,4 +50,4 @@ force_unicode = []
 force_ascii = []
 force_code_page_437 = []
 
-_checking = []
+_checking = ["all"]

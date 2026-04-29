@@ -5,6 +5,13 @@
 //! A: That is correct in theory. However, the increased clarity is worth this tiny, almost invisible, increase in resources
 //! S: Most crates using this lib have a feature called `no_nightly_check` that disables this crate
 
+#[cfg_attr(all(feature = "strum"), derive(strum::EnumIter))]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "bitcode", derive(bitcode::Encode, bitcode::Decode))]
+#[cfg_attr(
+    feature = "wincode",
+    derive(wincode::SchemaRead, wincode::SchemaWrite)
+)]
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 /// What the pretty print should print
 pub enum PrettyPrintFormat {
@@ -12,6 +19,11 @@ pub enum PrettyPrintFormat {
     Text(String, PrettyPrintAlignment),
     /// A divider
     Divider,
+}
+impl Default for PrettyPrintFormat {
+    fn default() -> Self {
+        Self::Text(String::new(), PrettyPrintAlignment::default())
+    }
 }
 trait PrettyPrintConvenience {
     fn to_pretty_print(
@@ -27,10 +39,18 @@ impl PrettyPrintConvenience for &'_ str {
         PrettyPrintFormat::Text(self.to_string(), alignment)
     }
 }
-
+#[cfg_attr(all(feature = "strum"), derive(strum::EnumIter))]
+#[cfg_attr(all(feature = "enum_ext"), enum_ext::enum_extend)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "bitcode", derive(bitcode::Encode, bitcode::Decode))]
+#[cfg_attr(
+    feature = "wincode",
+    derive(wincode::SchemaRead, wincode::SchemaWrite)
+)]
 /// Where in line an item should go
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
 pub enum PrettyPrintAlignment {
+    #[default]
     /// Front of the line
     Front,
     /// Middle of line
@@ -43,9 +63,18 @@ impl From<(&'_ str, PrettyPrintAlignment)> for PrettyPrintFormat {
         Self::Text(value.0.to_string(), value.1)
     }
 }
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[cfg_attr(all(feature = "strum"), derive(strum::EnumIter))]
+#[cfg_attr(all(feature = "enum_ext"), enum_ext::enum_extend)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "bitcode", derive(bitcode::Encode, bitcode::Decode))]
+#[cfg_attr(
+    feature = "wincode",
+    derive(wincode::SchemaRead, wincode::SchemaWrite)
+)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
 /// Get supported characters
 pub enum BorderVariants {
+    #[default]
     /// Unicode characters
     Unicode,
     /// Code page 437
@@ -143,6 +172,12 @@ impl BorderVariants {
     }
 }
 
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "bitcode", derive(bitcode::Encode, bitcode::Decode))]
+#[cfg_attr(
+    feature = "wincode",
+    derive(wincode::SchemaRead, wincode::SchemaWrite)
+)]
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 /// The text holder
 pub struct PrettyPrintText {
