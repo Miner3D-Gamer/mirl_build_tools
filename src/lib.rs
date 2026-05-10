@@ -4,14 +4,28 @@
 //! Q: Doesn't this just increase compile times and pollute the target cache?
 //! A: That is correct in theory. However, the increased clarity is worth this tiny, almost invisible, increase in resources
 //! S: Most crates using this lib have a feature called `no_nightly_check` that disables this crate
+//!
+//! ----------
+//!
+//! How to intigrate:
+//! ```toml
+//! [build-dependencies]
+//! mirl_build_tools = "*"
+//!
+//! [features]
+//! miri = ["mirl_build_tools/mirl"]
+//! ```
+//!
+//! And in `build.rs`:
+//! ```rust
+//! perform_default_tests()
+//! ```
+//! Or if you don't need custom miri support:
+//! ```rust
+//! ensure_nightly()
+//! ```
 
-#[cfg_attr(all(feature = "strum"), derive(strum::EnumIter))]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-#[cfg_attr(feature = "bitcode", derive(bitcode::Encode, bitcode::Decode))]
-#[cfg_attr(
-    feature = "wincode",
-    derive(wincode::SchemaRead, wincode::SchemaWrite)
-)]
+#[cfg_attr(feature = "mirl_derive", mirl_derive::derive_all)]
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 /// What the pretty print should print
 pub enum PrettyPrintFormat {
@@ -39,14 +53,7 @@ impl PrettyPrintConvenience for &'_ str {
         PrettyPrintFormat::Text(self.to_string(), alignment)
     }
 }
-#[cfg_attr(all(feature = "strum"), derive(strum::EnumIter))]
-#[cfg_attr(all(feature = "enum_ext"), enum_ext::enum_extend)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-#[cfg_attr(feature = "bitcode", derive(bitcode::Encode, bitcode::Decode))]
-#[cfg_attr(
-    feature = "wincode",
-    derive(wincode::SchemaRead, wincode::SchemaWrite)
-)]
+#[cfg_attr(feature = "mirl_derive", mirl_derive::derive_all)]
 /// Where in line an item should go
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
 pub enum PrettyPrintAlignment {
@@ -63,14 +70,7 @@ impl From<(&'_ str, PrettyPrintAlignment)> for PrettyPrintFormat {
         Self::Text(value.0.to_string(), value.1)
     }
 }
-#[cfg_attr(all(feature = "strum"), derive(strum::EnumIter))]
-#[cfg_attr(all(feature = "enum_ext"), enum_ext::enum_extend)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-#[cfg_attr(feature = "bitcode", derive(bitcode::Encode, bitcode::Decode))]
-#[cfg_attr(
-    feature = "wincode",
-    derive(wincode::SchemaRead, wincode::SchemaWrite)
-)]
+#[cfg_attr(feature = "mirl_derive", mirl_derive::derive_all)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
 /// Get supported characters
 pub enum BorderVariants {
@@ -172,12 +172,7 @@ impl BorderVariants {
     }
 }
 
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-#[cfg_attr(feature = "bitcode", derive(bitcode::Encode, bitcode::Decode))]
-#[cfg_attr(
-    feature = "wincode",
-    derive(wincode::SchemaRead, wincode::SchemaWrite)
-)]
+#[cfg_attr(feature = "mirl_derive", mirl_derive::derive_all)]
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 /// The text holder
 pub struct PrettyPrintText {
@@ -355,6 +350,23 @@ pub fn get_nightly_pretty_print() -> PrettyPrintText {
         border,
     }
 }
+/// Ensures that nightly is used
+///
+/// If miri is used, ensures that the miri flag is set
+pub fn perform_default_tests() {
+    ensure_nightly();
+    check_miri_flag_if_miri();
+}
+
+/// Give a compile time error when miri is used without the miri flag
+#[cfg(all(miri, not(feature = "miri")))]
+pub fn check_miri_flag_if_miri() {
+    compile_error!("You are using miri without the `miri` flag")
+}
+/// Give a compile time error when miri is used without the miri flag
+#[allow(clippy::missing_const_for_fn)]
+#[cfg(not(all(miri, not(feature = "miri"))))]
+pub fn check_miri_flag_if_miri() {}
 
 /// Print the "nightly required" screen
 pub fn print_nightly() {

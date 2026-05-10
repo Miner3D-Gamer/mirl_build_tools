@@ -11,37 +11,57 @@ authors.workspace = true
 version_check = "0.9"
 terminal_size = { version = "0.4", optional = true }
 
+mirl_derive = { version = "0.0.0-alpha", optional = true }
 # Codec
-serde = { version = ">=1.0", optional = true, features = ["derive"] }
+compactly = { version = "0.1.6", optional = true }
+serde = { version = ">=1.0", optional = true, default-features = false, features = [
+    "derive",
+] }
 bitcode = { version = "0.6.9", optional = true, default-features = false, features = [
     "derive",
 ] }
-wincode = { version = "0.4.5", optional = true,  features = [
+wincode = { version = "0.4.5", optional = true, default-features = false, features = [
     "derive",
 ] }
+zerocopy = { version = "0.8.48", optional = true, default-features = false, features = [
+    "float-nightly",
+    "derive",
+] }
+
 # Enum functionality
 strum = { version = ">=0.28", optional = true, default-features = false, features = [
     "derive",
 ] }
-enum_ext = { version = "0.5.2", optional = true, default-features = false, features = [
-] }
+enum_ext = { version = "0.5.2", optional = true, default-features = false }
+
+
 [lints]
 workspace = true
 
 [features]
 default = ["margin"]
-# Compatibility with ffi
-c_compatible = []
+miri = []
 all = ["serde", "bitcode", "wincode", "strum", "enum_ext"]
 
-serde = ["dep:serde"]
-bitcode = ["dep:bitcode"]
-wincode = ["dep:wincode"]
+# Does nothing by itself. Needs another codec or enum flag to do something
+mirl_derive = ["dep:mirl_derive"]
+# Compatibility with ffi
+c_compatible = ["mirl_derive"]
+# Enables all codecs
+all_codecs = ["serde", "bitcode", "wincode", "compactly", "zerocopy"]
+# All enum extensions
+all_enum_extensions = ["strum", "enum_ext"]
 
+# Codec stuff
+serde = ["dep:serde", "mirl_derive"]
+bitcode = ["dep:bitcode", "mirl_derive"]
+wincode = ["dep:wincode", "mirl_derive"]
+compactly = ["dep:compactly", "mirl_derive"]
+zerocopy = ["dep:zerocopy", "mirl_derive"]
 
 # Enum extensions
-strum = ["dep:strum"]
-enum_ext = ["dep:enum_ext"]
+strum = ["dep:strum", "mirl_derive"]
+enum_ext = ["dep:enum_ext", "mirl_derive"]
 
 border = ["terminal_size"]
 margin = ["border"]
