@@ -11,15 +11,20 @@
 
 - ~~`std` (Default)~~ - `std` is required
 - `c_compatible`
+- `all`
 
 **Codec**
 
+- `all_codecs`
 - `serde`
 - `bitcode`
 - `wincode` (bitcode recommended)
+- `zerocopy`
+- `compactly`
 
 **Enum**
 
+- `all_enum_extensions`
 - `strum`
 - `enum_ext`
 
@@ -35,7 +40,11 @@
 
 ### Entry points
 
-The `ensure_nightly` function ensures that nightly is used, warns the user otherwise.
+The `setup` function does 3 things:
+1. Ensures that nightly is used, warning the user otherwise.
+2. Checks if the crate has a `miri` flag. If miri is used without the flag being set, gives user an error.
+3. Adds presents to compilation environment under `{crate_name}_present`
+
 
 ### Purpose
 
