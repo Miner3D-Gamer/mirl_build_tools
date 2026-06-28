@@ -27,13 +27,13 @@ pub fn compile_error<T: std::fmt::Display>(error: T) {
 }
 /// Exit the process
 /// 
-/// Equivilant to `std::process::exit(code)`
+/// Equivalent to `std::process::exit(code)`
 pub fn exit<T: Into<i32>>(code: T) {
     std::process::exit(code.into())
 }
 /// Exit the process
 /// 
-/// Equivilant to `std::process::exit(code)`
+/// Equivalent to `std::process::exit(code)`
 pub fn quit<T: Into<i32>>(code: T) {
     exit(code);
 }

@@ -10,6 +10,15 @@ pub enum BorderVariants {
     /// Ascii
     Ascii,
 }
+// #[cfg(all(feature = "force_unicode", feature = "force_ascii"))]
+// compile_error!("Cannot enable both `force_unicode` and `force_ascii`");
+
+// #[cfg(all(feature = "force_unicode", feature = "force_code_page_437"))]
+// compile_error!("Cannot enable both `force_unicode` and `force_code_page_437`");
+
+// #[cfg(all(feature = "force_ascii", feature = "force_code_page_437"))]
+// compile_error!("Cannot enable both `force_ascii` and `force_code_page_437`");
+
 impl BorderVariants {
     #[must_use]
     #[allow(unreachable_code)]

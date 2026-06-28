@@ -20,6 +20,37 @@
 //! ensure_nightly()
 //! ```
 
+/// Libraries that directly expand rust
+pub const CRATES_THAT_EXPAND_PRELUDE: &[&str] = &[
+    "mirl_extensions",
+    "mirl_extensions_math",
+    "mirl_extensions_conversion",
+    "mirl_extensions_core",
+];
+/// Libraries that are neat to have
+pub const NEAT_CRATES_TO_PRELUDE: &[&str] = &[
+    "mirl_buffer",
+    "mirl_graphics",
+    "mirl_rendering",
+    "mirl_system",
+    "mirl_windowing",
+    "mirl_codec_info",
+];
+
+// TODO:
+// Using the following, a custom prelude can be defined. Use the listed crates above as candidates to automatically import into every file
+
+// #![feature(prelude_import)]
+// #[allow(unreachable_pub)]
+// mod custom_prelude {
+//     pub use mirl_extensions::*;
+//     pub use std::prelude::rust_2024::*;
+// }
+// #[prelude_import]
+// #[allow(unused_imports)]
+// use custom_prelude::*;
+
+
 /// Prettify text for nice visuals in the console
 pub mod pretty_print;
 use pretty_print::*;
@@ -31,6 +62,9 @@ use control::*;
 /// cargo.toml related functions
 pub mod toml;
 use toml::*;
+
+/// All the info you can extract at build time
+pub mod info;
 
 /// Ensures that nightly is used
 ///
@@ -62,24 +96,17 @@ pub fn setup() {
 //     compile_error!("You are using miri without the `miri` flag")
 // }
 
-
 /// Give a compile time error when miri is used without the miri flag
 #[allow(clippy::missing_const_for_fn)]
 #[cfg(not(all(miri, not(feature = "miri"))))]
 pub fn check_miri_flag_if_miri() {}
 
 /// Print the "nightly required" screen
-pub fn print_nightly() {
+pub fn print_nightly_warning() {
     eprintln!(
         "{}",
         get_nightly_pretty_print().to_text(BorderVariants::determine_codec())
     );
-}
-
-#[test]
-fn test_print() {
-    ensure_nightly();
-    print_nightly();
 }
 
 // /// Print the header of the nightly message
@@ -131,7 +158,7 @@ pub fn ensure_nightly() {
     let is_nightly = true;
 
     if !is_nightly {
-        print_nightly();
+        print_nightly_warning();
 
         // Exit with error code
         std::process::exit(1);
@@ -159,4 +186,23 @@ pub fn detect_linux_visual_backend() {
     // Re-run if these variables change
     println!("cargo:rerun-if-env-changed=WAYLAND_DISPLAY");
     println!("cargo:rerun-if-env-changed=DISPLAY");
+}
+/// Print all variables in env
+pub fn print_everything_in_env() {
+    for (k, v) in std::env::vars() {
+        compile_warning(format!("{k}={v}"));
+    }
+}
+
+#[cfg(test)]
+/// Tests for the lib
+pub mod test {
+    use super::*;
+
+    #[test]
+    /// Test if the nightly detection works
+    pub fn test_print() {
+        ensure_nightly();
+        print_nightly_warning();
+    }
 }
