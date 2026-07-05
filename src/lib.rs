@@ -50,7 +50,6 @@ pub const NEAT_CRATES_TO_PRELUDE: &[&str] = &[
 // #[allow(unused_imports)]
 // use custom_prelude::*;
 
-
 /// Prettify text for nice visuals in the console
 pub mod pretty_print;
 use pretty_print::*;
@@ -66,30 +65,59 @@ use toml::*;
 /// All the info you can extract at build time
 pub mod info;
 
-/// Ensures that nightly is used
+/// Does several checks:
 ///
-/// If miri is used, ensures that the miri flag is set
-pub fn setup() {
-    ensure_nightly();
+/// - If input boolean is set
+/// - If the crate has a miri flag and miri is used, the flag must also be set
+/// - Adds `{crate_name}_present` to the compile time flags so it can be used in `#[cfg({crate_name}_present)]`
+///
+/// TODO:
+/// - Add check for the following: if this crate has a feature "X", check if the crate importing it also imports X. If it does, X must also be activated
+/// - Add check for the following: If this crate has a feature "X" and a dependency also has X, then the X feature of the dependency should also be included in the X feature of this crate
+pub fn setup(require_nightly: bool) {
+    // Nightly check
+    if require_nightly {
+        ensure_nightly();
+    }
+    // Toml info extraction
     let toml = match get_toml_contents() {
         Ok(val) => val,
         Err(err) => {
-            println!("Unable to read Cargo.toml: {err}");
+            compile_error(format!("Unable to read Cargo.toml: {err}"));
             std::process::exit(1);
         }
     };
+    // Crate name present
     let crate_name = get_toml_crate_name(&toml).unwrap_or_else(|| {
-        println!("Unable to obtain crate name from Cargo.toml");
+        compile_error(
+            "Unable to obtain crate name from Cargo.toml (file found and read but name not found inside)",
+        );
+
         std::process::exit(2);
     });
-    let has_miri = has_miri_flag(&toml);
-
     // println!("Got name! Here `{}`", crate_name);
     add_rust_compile_time_flag(&format!("{crate_name}_present"));
-    if has_miri {
-        // Impl me!
+
+    // Miri check
+    let has_miri_flag = has_miri_flag(&toml);
+
+    if has_miri_flag && !is_feature_active("miri") {
+        compile_error(format!(
+            "Miri used inside {crate_name} without the miri flag being activated"
+        ));
     }
 }
+/// Checks if a feature flag is currently activated
+///
+/// Also returns false when a flag doesn't exist
+pub fn is_feature_active<T: Into<String>>(name: T) -> bool {
+    let str = name.into().replace('-', "_").to_uppercase();
+    let Ok(output) = std::env::var(format!("CARGO_FEATURE_{str}")) else {
+        return false;
+    };
+    output == "1"
+}
+
 // /// Give a compile time error when miri is used without the miri flag
 // #[cfg(all(miri, not(feature = "miri")))]
 // pub fn check_miri_flag_if_miri() {
@@ -168,6 +196,12 @@ pub fn ensure_nightly() {
 
     println!("cargo:rerun-if-changed=build.rs");
 }
+
+// /// Checks if the project will require nightly to function
+// pub fn detect_nightly() -> bool {
+//     // TODO
+// }
+
 /// Detect if the linux user uses WAYLAND or X11 (preferring WAYLAND)
 pub fn detect_linux_visual_backend() {
     let wayland = std::env::var("WAYLAND_DISPLAY").is_ok();

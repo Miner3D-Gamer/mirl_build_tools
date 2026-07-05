@@ -79,7 +79,7 @@ impl std::fmt::Display for GetCargoError {
                 write!(f, "IO error reading cargo file: {err}")
             }
             Self::VarError(err) => {
-                write!(f, "Environment variable error: {err}")
+                write!(f, "Environment variable error (file not found): {err}")
             }
         }
     }
@@ -108,7 +108,7 @@ impl From<std::env::VarError> for GetCargoError {
 /// Try to get the toml contents of the currently building lib. Not the highest crate but the one who imported this lib.
 ///
 /// # Errors
-/// [`std::io::Error`]
+/// [`GetCargoError`]
 pub fn get_toml_contents() -> Result<String, GetCargoError> {
     let manifest_dir = std::env::var("CARGO_MANIFEST_DIR")?;
     let cargo_toml_path = format!("{manifest_dir}/Cargo.toml");
