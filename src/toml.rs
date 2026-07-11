@@ -1,21 +1,21 @@
 #[must_use]
 /// Given a toml, get the crate name
 pub fn get_toml_crate_name(toml: &str) -> Option<String> {
-    find_field_in_toml(toml, "name")
+    get_field_in_toml(toml, "name")
 }
 #[must_use]
 /// Given a toml, get the crate version
 pub fn get_toml_crate_version(toml: &str) -> Option<String> {
-    find_field_in_toml(toml, "version")
+    get_field_in_toml(toml, "version")
 }
 #[must_use]
 /// Given a toml, check if it contains a miri flag
-pub fn has_miri_flag(toml: &str) -> bool {
-    toml.contains("\nmiri =") | toml.contains("\nmiri=")
+pub fn had_flag_or_dependency(toml: &str, name: &str) -> bool {
+    toml.contains(&format!("\n{name} =")) | toml.contains(&format!("\n{name}="))
 }
 #[must_use]
 /// Get the value of a field in toml without parsing the whole toml
-pub fn find_field_in_toml(toml: &str, field: &str) -> Option<String> {
+pub fn get_field_in_toml(toml: &str, field: &str) -> Option<String> {
     let mut offset = 0;
     let equal_idx = loop {
         if offset >= toml.len() {
@@ -113,4 +113,35 @@ pub fn get_toml_contents() -> Result<String, GetCargoError> {
     let manifest_dir = std::env::var("CARGO_MANIFEST_DIR")?;
     let cargo_toml_path = format!("{manifest_dir}/Cargo.toml");
     Ok(std::fs::read_to_string(cargo_toml_path)?)
+}
+
+/// List all features from a list of lines
+///
+/// This function is gracefully stolen from the `list_features` crate because of their inability to make functions public
+pub fn parse_feature_keys_from_lines<I: IntoIterator<Item = String>>(
+    lines: I,
+) -> std::collections::HashSet<String> {
+    let mut in_features = false;
+    let mut features = std::collections::HashSet::new();
+
+    for line in lines {
+        let stripped = line.split('#').next().unwrap_or("").trim();
+
+        if stripped.starts_with('[') {
+            in_features = stripped == "[features]";
+            continue;
+        }
+
+        if in_features
+            && !stripped.is_empty()
+            && let Some((key, _)) = stripped.split_once('=')
+        {
+            let key = key.trim().trim_matches('"');
+            if !key.is_empty() {
+                features.insert(key.to_string());
+            }
+        }
+    }
+
+    features
 }

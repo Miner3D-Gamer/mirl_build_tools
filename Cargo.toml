@@ -10,7 +10,6 @@ authors.workspace = true
 default = ["margin"]
 miri = []
 all = ["serde", "bitcode", "wincode", "strum", "enum_ext"]
-
 # Does nothing by itself. Needs another codec or enum flag to do something
 mirl_derive = ["dep:mirl_derive"]
 # Compatibility with ffi
@@ -19,25 +18,20 @@ c_compatible = ["mirl_derive"]
 all_codecs = ["serde", "bitcode", "wincode", "compactly", "zerocopy"]
 # All enum extensions
 all_enum_extensions = ["strum", "enum_ext"]
-
 # Codec stuff
 serde = ["dep:serde", "mirl_derive"]
 bitcode = ["dep:bitcode", "mirl_derive"]
 wincode = ["dep:wincode", "mirl_derive"]
 compactly = ["dep:compactly", "mirl_derive"]
 zerocopy = ["dep:zerocopy", "mirl_derive"]
-
 # Enum extensions
 strum = ["dep:strum", "mirl_derive"]
 enum_ext = ["dep:enum_ext", "mirl_derive"]
-
 border = ["terminal_size"]
 margin = ["border"]
-
 force_unicode = []
 force_ascii = []
 force_code_page_437 = []
-
 _checking = ["all"]
 
 [dependencies]
@@ -47,13 +41,11 @@ bitcode = { version = "0.6", optional = true, default-features = false, features
 # Codec
 compactly = { version = "0.1", optional = true }
 enum_ext = { version = "0.6", optional = true, default-features = false }
-
 mirl_derive = { version = "0.0.0-alpha", optional = true }
-serde = { version = "1", optional = true, default-features = false, features = [
+serde = { version = "1.0", optional = true, default-features = false, features = [
     "derive",
     "std",
 ] }
-
 # Enum functionality
 strum = { version = "0.28", optional = true, default-features = false, features = [
     "derive",
