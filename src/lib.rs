@@ -20,23 +20,6 @@
 //! ensure_nightly()
 //! ```
 
-/// Libraries that directly expand rust
-pub const CRATES_THAT_EXPAND_PRELUDE: &[&str] = &[
-    "mirl_extensions",
-    "mirl_extensions_math",
-    "mirl_extensions_conversion",
-    "mirl_extensions_core",
-];
-/// Libraries that are neat to have
-pub const NEAT_CRATES_TO_PRELUDE: &[&str] = &[
-    "mirl_buffer",
-    "mirl_graphics",
-    "mirl_rendering",
-    "mirl_system",
-    "mirl_windowing",
-    "mirl_codec_info",
-];
-
 // TODO:
 // Using the following, a custom prelude can be defined. Use the listed crates above as candidates to automatically import into every file
 
@@ -50,12 +33,11 @@ pub const NEAT_CRATES_TO_PRELUDE: &[&str] = &[
 // #[allow(unused_imports)]
 // use custom_prelude::*;
 
-/// Prettify text for nice visuals in the console
-pub mod pretty_print;
-use pretty_print::*;
-
 /// Use the configuration options cargo provides
 pub mod control;
+/// Prettify text for nice visuals in the console
+pub mod pretty_print;
+
 use control::*;
 
 /// cargo.toml related functions
@@ -64,6 +46,26 @@ use toml::*;
 
 /// All the info you can extract at build time
 pub mod info;
+
+/// Detect/Modify feature flags
+pub mod features;
+use features::*;
+/// cargo.lock related functions
+pub mod lock;
+/// Nightly related functions
+pub mod nightly;
+use nightly::*;
+
+/// Cargo metadata related functions
+pub mod metadata;
+
+/// Expand the functionality of rust using the creation of custom libs
+pub mod prelude_features;
+/// Settings for the setup function of this lib
+pub mod settings;
+
+pub use settings::SetupSettings;
+use settings::*;
 
 /// Does several checks:
 ///
@@ -74,13 +76,22 @@ pub mod info;
 /// TODO:
 /// - Add check for the following: if this crate has a feature "X", check if the crate importing it also imports X. If it does, X must also be activated
 /// - Add check for the following: If this crate has a feature "X" and a dependency also has X, then the X feature of the dependency should also be included in the X feature of this crate
-pub fn setup() {
+pub fn setup<T: AsRef<SetupSettings>>(settings: T) {
+    let settings = settings.as_ref();
+    rerun_if_build_rs_changes();
+
     // Toml info extraction
-    let toml = match get_toml_contents() {
+    let cargo_path = match get_toml_path() {
+        Ok(val) => val,
+        Err(err) => {
+            compile_error(format!("Unable to find Cargo.toml: {err}"));
+        }
+    };
+    rerun_if_file_changes(&cargo_path);
+    let toml = match std::fs::read_to_string(&cargo_path) {
         Ok(val) => val,
         Err(err) => {
             compile_error(format!("Unable to read Cargo.toml: {err}"));
-            std::process::exit(1);
         }
     };
     // Crate name present
@@ -89,93 +100,157 @@ pub fn setup() {
             "Unable to obtain crate name from Cargo.toml (file found and read but name not found inside)",
         );
 
-        std::process::exit(3);
     });
     // Nightly check
-    if match detect_nightly(Some(&toml)) {
-        Ok(val) => val,
-        Err(e) => {
-            compile_error(format!("Unable to access lib.rs or main.rs: {e}"));
-
-            std::process::exit(2);
-        }
-    } {
-        // compile_warning(format!(">{crate_name} requires nightly"));
-        ensure_nightly();
-    }
+    handle_nightly(settings.nightly, Some(&toml));
     // else {
     //     compile_warning(format!("##>{crate_name} does not requires nightly"));
     // }
     // println!("Got name! Here `{}`", crate_name);
-    add_rust_compile_time_flag(&format!("CRATE_PRESENT_{}", crate_name.to_uppercase()));
+    if settings.set_crate_present_cfg {
+        add_rust_compile_time_flag(&format!(
+            "CRATE_PRESENT_{}",
+            crate_name.to_uppercase().replace('-', "_")
+        ));
+    }
 
+    handle_flag_check(settings.flag_condition_check, &toml, &crate_name);
+
+    handle_dependency_check(&settings.dependency_check, &crate_name, &cargo_path, &toml);
+}
+/// Handle the dependency check
+pub fn handle_dependency_check(
+    settings: &DependencyCheck,
+    crate_name: &str,
+    toml_path: &str,
+    toml: &str,
+) {
+    match settings {
+        DependencyCheck::DoNotCheck => {}
+        DependencyCheck::Check(settings) => {
+            match crate::metadata::do_dep_feature_check_for_current(crate_name, settings) {
+                Ok(missing) => {
+                    if !missing.flags.is_empty() {
+                        // compile_warning(format!("#> {missing:#?}"));
+                        compile_warning(format!(
+                            "This crate and its dependencies share flag names which aren't activated when the flags of this crate are.\nIn the file \"{toml_path}\", following flags are missing:",
+                        ));
+
+                        let cwd = std::env::current_dir()
+                            .unwrap_or_else(|e| compile_error(format!("Unable to obtain cwd: {e}")))
+                            .to_string_lossy()
+                            .into_owned();
+
+                        let truncated_toml_path = if toml_path.starts_with(&cwd) && false {
+                            &toml_path[cwd.len()..]
+                        } else {
+                            toml_path
+                        };
+
+                        let features = missing.parent_features;
+                        let mut flags: Vec<(String, Vec<(String, bool)>)> =
+                            missing.flags.into_iter().collect();
+                        flags.sort();
+
+                        let mut output = Vec::new();
+                        for (flag, dep) in flags {
+                            let mut final_flags = features
+                                .get_flag(&flag)
+                                .map(|x| x.activating.clone())
+                                .unwrap_or_default()
+                                .iter()
+                                .map(|x| format!("\"{x}\""))
+                                .collect::<Vec<String>>();
+                            final_flags.extend(dep.iter().map(|(flag_dep, is_weak)| {
+                                format!("\"{flag_dep}{}/{flag}\"", if *is_weak { "?" } else { "" })
+                            }));
+
+                            let pos = get_flag_pos(toml, &flag).unwrap_or_else(|| compile_error(format!(
+                                    "Feature flag was detected but couldn't be found in \"{toml_path}\": {flag}"
+                                )));
+                            output.push((pos, flag, final_flags));
+                            // compile_warning(format!(
+                            //     "From \"{truncated_toml_path}:{}:{}\" to {}:{} ({}:{}) => {flag} = [{}]",
+                            //     pos.line,
+                            //     pos.column,
+                            //     pos.line_end,
+                            //     pos.column_end,
+                            //     pos.item_start,pos.item_end,
+                            //     final_flags.join(", ")
+                            // ));
+                        }
+                        output.sort_by_key(|x| x.0.line);
+                        for (pos, flag, final_flags) in output {
+                            let path = format!(
+                                "{truncated_toml_path}:{}:{}-{}",
+                                pos.line,
+                                pos.column,
+                                if pos.line == pos.line_end {
+                                    format!("{}", pos.column_end)
+                                } else {
+                                    format!("{}:{}", pos.line_end, pos.column_end)
+                                }
+                            );
+                            compile_warning(format!(
+                                "From \"{path}\" ({}:{}) => {flag} = [{}]",
+                                pos.item_start,
+                                pos.item_end,
+                                final_flags.join(", ")
+                            ));
+                        }
+                    }
+                }
+                Err(err) => {
+                    compile_error(format!("# When trying to do a dependency check> {err:?}"))
+                }
+            }
+        }
+    }
+}
+/// Handle the known flag checking
+pub fn handle_flag_check(settings: FlagConditionCheck, toml: &str, name: &str) {
     // Miri check
-    let has_miri_flag = had_flag_or_dependency(&toml, "miri");
-
-    if has_miri_flag && !is_executing_using_miri() {
+    if settings.miri && is_flag_checked_under_condition(toml, "miri", is_executing_using_miri) {
         compile_error(format!(
-            "Miri used inside {crate_name} without the miri flag being activated"
+            "Miri used inside {name} without the miri flag being activated"
         ));
     }
     // Test check
-    let has_miri_flag = had_flag_or_dependency(&toml, "test");
-
-    if has_miri_flag && !is_executing_using_miri() {
+    if settings.test && is_flag_checked_under_condition(toml, "test", is_executing_using_test) {
         compile_error(format!(
-            "Test used inside {crate_name} without the test flag being activated"
+            "Test used inside {name} without the test flag being activated"
         ));
     }
 }
-/// Get the section about a specific crate
-#[must_use]
-pub fn get_section_about_crate<'a>(file: &'a str, crate_name: &str) -> Option<&'a str> {
-    let to_search = format!("[[package]]\nname = \"{crate_name}\"");
 
-    let start = file.find(&to_search)?;
-    let end = start
-        + file[(start)..]
-            .find("[[package]]")
-            .unwrap_or(file.len());
-
-    Some(&file[start..end])
+/// Handle the known flag checking for as single item
+pub fn is_flag_checked_under_condition(
+    toml: &str,
+    name: &str,
+    condition: impl Fn() -> bool,
+) -> bool {
+    has_flag_or_dependency(toml, name) && condition() && !is_feature_active(name)
 }
 
-/// Given a path, go upwards until a Cargo.lock is found
-///
-/// # Errors
-/// When the file could not be found
-pub fn find_workspace_lock_file() -> Result<std::path::PathBuf, GetCargoError> {
-    let path = std::env::var("CARGO_MANIFEST_DIR")?;
-
-    Ok(find_workspace_lock_from_path(std::path::Path::new(&path))?)
-}
-
-/// Given a path, go upwards until a Cargo.lock is found
-///
-/// # Errors
-/// When the file could not be found
-pub fn find_workspace_lock_from_path(
-    start: &std::path::Path,
-) -> Result<std::path::PathBuf, std::io::Error> {
-    let mut dir = start;
-
-    loop {
-        let candidate = dir.join("Cargo.lock");
-        if candidate.exists() {
-            return Ok(candidate);
-        }
-
-        {
-            let Some(parent) = dir.parent() else {
-                return Err(std::io::Error::new(
-                    std::io::ErrorKind::NotFound,
-                    "Cargo.lock could not be found",
-                ));
-            };
-            dir = parent;
-        }
+/// Handle nightly behaviour with the given settings
+pub fn handle_nightly(settings: NightlySettings, toml: Option<&str>) {
+    let nightly = match settings {
+        NightlySettings::DetectAutomatically => match detect_nightly(toml) {
+            Ok(val) => val,
+            Err(e) => {
+                compile_error(format!("Unable to access lib.rs or main.rs: {e}"));
+            }
+        },
+        NightlySettings::OverwriteWithNightly => true,
+        NightlySettings::OverwriteWithStable => false,
+    };
+    // Nightly check
+    if nightly {
+        // compile_warning(format!(">{crate_name} requires nightly"));
+        ensure_nightly();
     }
 }
+
 #[must_use]
 /// Check if current execution is running through miri
 pub fn is_executing_using_test() -> bool {
@@ -187,143 +262,15 @@ pub fn is_executing_using_miri() -> bool {
     is_env_flag_active("CARGO_MIRI")
 }
 
-#[must_use]
-/// Checks if a feature flag is currently activated
-///
-/// Also returns false when a flag doesn't exist
-pub fn is_feature_active<T: Into<String>>(name: T) -> bool {
-    let str = name.into().replace('-', "_");
-
-    is_env_flag_active(format!("CARGO_FEATURE_{str}"))
+/// Rerun the `build.rs` itself file changes
+pub fn rerun_if_build_rs_changes() {
+    rerun_if_file_changes("build.rs");
 }
-#[must_use]
-/// Checks if a flag is set to 1 in current env
-pub fn is_env_flag_active<T: Into<String>>(name: T) -> bool {
-    let str = name.into().to_uppercase();
-    let Ok(output) = std::env::var(str) else {
-        return false;
-    };
-    output == "1"
-}
-#[must_use]
-/// Get all active cargo features
-pub fn get_all_active_features() -> Vec<String> {
-    let mut output = Vec::new();
-    for (name, val) in std::env::vars() {
-        if name.starts_with("CARGO_FEATURE_") && val == "1" {
-            output.push(name);
-        }
-    }
-    output
+/// Rerun the `build.rs` when a file changes
+pub fn rerun_if_file_changes<T: std::fmt::Display>(file: T) {
+    println!("cargo:rerun-if-changed={file}");
 }
 
-/// Print the "nightly required" screen
-pub fn print_nightly_warning() {
-    eprintln!(
-        "{}",
-        get_nightly_pretty_print().to_text(BorderVariants::determine_codec())
-    );
-}
-
-/// Ensure that the user compiles with nightly. If they don't, give them a nice error message
-///
-/// When miri is used, assumes that nightly is used regardless of if it is
-///
-/// # Panics
-/// When unable to infer the rust version
-pub fn ensure_nightly() {
-    // Who uses miri before compiling their project even once anyways?
-    #[cfg(not(miri))]
-    // Check if we're using the nightly compiler
-    let Some(is_nightly) = version_check::is_feature_flaggable() else {
-        eprintln!("Unable to infer rust metadata using `version_check` crate");
-        return;
-    };
-    #[cfg(miri)]
-    let is_nightly = true;
-
-    if !is_nightly {
-        print_nightly_warning();
-
-        // Exit with error code
-        std::process::exit(1);
-    }
-    #[cfg(target_os = "linux")]
-    detect_linux_visual_backend();
-
-    println!("cargo:rerun-if-changed=build.rs");
-}
-
-/// Checks if the project will require nightly to function
-///
-/// # Errors
-/// When accessing the source code file is not possible
-pub fn detect_nightly(toml: Option<&str>) -> Result<bool, std::io::Error> {
-    let paths = [get_lib_rs_path(toml), get_main_rs_path(toml)];
-    // compile_warning(format!("{:?}",paths));
-    for path in paths.into_iter().flatten() {
-        // compile_warning(format!("{path}"));
-        let file_contents = std::fs::read_to_string(path)?;
-        if does_file_use_nightly(&file_contents) {
-            return Ok(true);
-        }
-    }
-    Ok(false)
-}
-#[must_use]
-/// Check if a file uses nightly by detecting if a fine uses the feature keyword
-pub fn does_file_use_nightly(file: &str) -> bool {
-    // TODO: Some idiot could leave a space between the feature and "(", check for that too
-    let Some(feature_idx) = file.find("feature(") else {
-        return false;
-    };
-    // eprintln!("{}", &file[feature_idx..feature_idx + 20]);
-    let line_start = file.bytes().take(feature_idx).len()
-        - file
-            .bytes()
-            .take(feature_idx)
-            .rev()
-            .position(|x| x == 10)
-            .unwrap_or_default(); // 10 is the Newline symbol
-
-    let line_start_whitespace_offset = file[line_start..]
-        .char_indices()
-        .skip_while(|x| x.1.is_whitespace())
-        .find(|_| true)
-        .map(|x| x.0)
-        .unwrap_or_default()
-        .saturating_sub(1);
-
-    // println!("{line_start} + {line_start_whitespace_offset}");
-    let line_start = line_start + line_start_whitespace_offset;
-
-    if file.as_bytes()[line_start] == b'#'
-    // line.starts_with('#')
-    {
-        // TODO: Multiple "#" could be stacked in the same line
-        return true;
-    }
-    let line_end = feature_idx
-        + file
-            .bytes()
-            .skip(feature_idx)
-            .position(|x| x == 10)
-            .unwrap_or_default(); // 10 is the Newline symbol
-
-    // let line = &file[line_start..line_end];
-    // compile_warning("\n");
-    // compile_warning("\n");
-    // compile_warning(format!(
-    //     "> {} --> {:?}\n",
-    //     line.replace('\n', "\\n"),
-    //     char::from_u32(file.as_bytes()[line_start] as u32).unwrap()
-    // ));
-    if file[line_end..].contains("feature(") {
-        does_file_use_nightly(&file[line_end..])
-    } else {
-        false
-    }
-}
 /// Get a file relative to the source
 #[must_use]
 pub fn _get_rs_path(toml: Option<&str>, file: &str) -> Option<String> {

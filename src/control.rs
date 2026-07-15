@@ -1,4 +1,3 @@
-
 /// Add a flag that can be checked at compile time
 ///
 /// # Usage:
@@ -18,21 +17,27 @@ pub fn add_rust_compile_time_flag(flag: &str) {
 }
 /// Give out a compile time warning
 pub fn compile_warning<T: std::fmt::Display>(warning: T) {
-    println!("cargo:warning={warning}");
+    let warning = format!("{warning}");
+    for warning in warning.split('\n') {
+        println!("cargo:warning={warning}");
+    }
 }
-
+#[track_caller]
 /// Give out a compile time error
-pub fn compile_error<T: std::fmt::Display>(error: T) {
-    println!("cargo:error={error}");
+///
+/// # Panics
+/// Stops the compilation
+pub fn compile_error<T: std::fmt::Display>(error: T) -> ! {
+    panic!("{error}");
 }
 /// Exit the process
-/// 
+///
 /// Equivalent to `std::process::exit(code)`
 pub fn exit<T: Into<i32>>(code: T) {
     std::process::exit(code.into())
 }
 /// Exit the process
-/// 
+///
 /// Equivalent to `std::process::exit(code)`
 pub fn quit<T: Into<i32>>(code: T) {
     exit(code);
