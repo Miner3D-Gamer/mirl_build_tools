@@ -1,9 +1,5 @@
 use crate::pretty_print::{BorderVariants, PrettyPrintAlignment, PrettyPrintFormat};
 
-#[cfg_attr(
-    feature = "mirl_derive",
-    mirl_derive::derive_all(zerocopy = false, compactly = false,)
-)]
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 /// The text holder
 pub struct PrettyPrintText {

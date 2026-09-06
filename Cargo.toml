@@ -1,7 +1,7 @@
 [package]
 name = "mirl_build_tools"
 version = "0.0.0-alpha"
-edition.workspace = true
+edition = "2024"
 repository.workspace = true
 license.workspace = true
 authors.workspace = true
@@ -10,23 +10,21 @@ authors.workspace = true
 default = ["margin"]
 miri = []
 all = ["serde", "bitcode", "wincode", "strum", "enum_ext"]
-# Does nothing by itself. Needs another codec or enum flag to do something
-mirl_derive = ["dep:mirl_derive"]
 # Compatibility with ffi
-c_compatible = ["mirl_derive"]
+c_compatible = []
 # Enables all codecs
 all_codecs = ["serde", "bitcode", "wincode", "compactly", "zerocopy"]
 # All enum extensions
 all_enum_extensions = ["strum", "enum_ext"]
 # Codec stuff
-serde = ["dep:serde", "mirl_derive"]
-bitcode = ["dep:bitcode", "mirl_derive"]
-wincode = ["dep:wincode", "mirl_derive"]
-compactly = ["dep:compactly", "mirl_derive"]
-zerocopy = ["dep:zerocopy", "mirl_derive"]
+serde = ["dep:serde"]
+bitcode = ["dep:bitcode"]
+wincode = ["dep:wincode"]
+compactly = ["dep:compactly"]
+zerocopy = ["dep:zerocopy"]
 # Enum extensions
-strum = ["dep:strum", "mirl_derive"]
-enum_ext = ["dep:enum_ext", "mirl_derive"]
+strum = ["dep:strum"]
+enum_ext = ["dep:enum_ext"]
 border = ["terminal_size"]
 margin = ["border"]
 force_unicode = []
@@ -39,14 +37,14 @@ bitcode = { version = "0.6", optional = true, default-features = false, features
     "derive",
 ] }
 # Codec
-compactly = { version = "0.1", optional = true }
+compactly = { version = "0.2", optional = true }
 enum_ext = { version = "0.6", optional = true, default-features = false }
-mirl_derive = { version = "0.0.0-alpha", optional = true }
+mirl_macros = { version = "0.0.0-alpha" }
 serde = { version = "1.0", optional = true, default-features = false, features = [
     "derive",
     "std",
 ] }
-simd-json = { version = "0.17.3", default-features = false, features = [
+simd-json = { version = "0.18", default-features = false, features = [
     "runtime-detection",
 ] }
 # Enum functionality
@@ -55,7 +53,7 @@ strum = { version = "0.28", optional = true, default-features = false, features 
 ] }
 terminal_size = { version = "0.4", optional = true }
 version_check = "0.9"
-wincode = { version = "0.5", optional = true, features = ["derive"] }
+wincode = { version = "0.6", optional = true, features = ["derive"] }
 zerocopy = { version = "0.8", optional = true, default-features = false, features = [
     "float-nightly",
     "derive",

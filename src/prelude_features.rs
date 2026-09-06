@@ -91,6 +91,7 @@ pub const CRATES_THAT_EXPAND_PRELUDE: &[&CratePrelude] = &[
             "heck::ToUpperCamelCase",
         ],
     ),
+    &CratePrelude::new("bitint"),
 ];
 /// Libraries that are neat to have
 pub const NEAT_CRATES_TO_PRELUDE: &[&CratePrelude] = &[

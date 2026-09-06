@@ -107,6 +107,7 @@ pub fn setup<T: AsRef<SetupSettings>>(settings: T) {
     //     compile_warning(format!("##>{crate_name} does not requires nightly"));
     // }
     // println!("Got name! Here `{}`", crate_name);
+
     if settings.set_crate_present_cfg {
         add_rust_compile_time_flag(&format!(
             "CRATE_PRESENT_{}",
@@ -232,7 +233,7 @@ pub fn is_flag_checked_under_condition(
     has_flag_or_dependency(toml, name) && condition() && !is_feature_active(name)
 }
 
-/// Handle nightly behaviour with the given settings
+/// Handle nightly behavior with the given settings
 pub fn handle_nightly(settings: NightlySettings, toml: Option<&str>) {
     let nightly = match settings {
         NightlySettings::DetectAutomatically => match detect_nightly(toml) {
@@ -244,10 +245,14 @@ pub fn handle_nightly(settings: NightlySettings, toml: Option<&str>) {
         NightlySettings::OverwriteWithNightly => true,
         NightlySettings::OverwriteWithStable => false,
     };
+    add_rust_compile_time_flag("IS_NIGHTLY");
     // Nightly check
     if nightly {
+        add_rust_compile_time_flag("IS_NIGHTLY");
         // compile_warning(format!(">{crate_name} requires nightly"));
         ensure_nightly();
+    } else {
+        add_rust_valid_compile_time_flag("IS_NIGHTLY");
     }
 }
 

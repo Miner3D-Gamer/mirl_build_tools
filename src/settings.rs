@@ -1,7 +1,7 @@
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 /// Settings for the setup
 pub struct SetupSettings {
-    /// Nightly behaviour
+    /// Nightly behavior
     pub nightly: NightlySettings,
     /// If `CRATE_PRESENT_{crate_name.to_uppercase()}` should be added to the env to be used in `#[cfg(CRATE_PRESENT_{crate_name.to_uppercase()})]`
     pub set_crate_present_cfg: bool,
@@ -24,11 +24,11 @@ impl Default for SetupSettings {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
 pub enum NightlySettings {
     /// You are using nightly and wish for this to be reflected
+    #[default]
     OverwriteWithNightly,
     /// You are using stable and wish for this to be reflected
     OverwriteWithStable,
     /// You may or may not be using nighty, automated detection will tell
-    #[default]
     DetectAutomatically,
 }
 /// If for flag activations should be checked for when a supported flag is defined
@@ -130,13 +130,13 @@ impl SetupSettings {
         self
     }
 
-    /// Shortcut: force nightly behaviour to be reported as active.
+    /// Shortcut: force nightly behavior to be reported as active.
     pub const fn set_nightly_overwrite_with_nightly(&mut self) -> &mut Self {
         self.nightly = NightlySettings::OverwriteWithNightly;
         self
     }
 
-    /// Shortcut: force nightly behaviour to be reported as inactive (stable).
+    /// Shortcut: force nightly behavior to be reported as inactive (stable).
     pub const fn set_nightly_overwrite_with_stable(&mut self) -> &mut Self {
         self.nightly = NightlySettings::OverwriteWithStable;
         self

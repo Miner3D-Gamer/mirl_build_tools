@@ -7,6 +7,8 @@ use crate::{
 ///
 /// # Errors
 /// When accessing the source code file is not possible
+/// 
+/// TODO: This function seems to leave false negatives!!!
 pub fn detect_nightly(toml: Option<&str>) -> Result<bool, std::io::Error> {
     let paths = [get_lib_rs_path(toml), get_main_rs_path(toml)];
     // compile_warning(format!("{:?}",paths));

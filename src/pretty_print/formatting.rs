@@ -1,4 +1,3 @@
-#[cfg_attr(feature = "mirl_derive", mirl_derive::derive_all(zerocopy = false))]
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 /// What the pretty print should print
 pub enum PrettyPrintFormat {
@@ -22,7 +21,7 @@ impl PrettyPrintConvenience for &'_ str {
         PrettyPrintFormat::Text(self.to_string(), alignment)
     }
 }
-#[cfg_attr(feature = "mirl_derive", mirl_derive::derive_all)]
+
 /// Where in line an item should go
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
 pub enum PrettyPrintAlignment {

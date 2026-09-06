@@ -13,7 +13,12 @@
 /// #[cfg(flag)]
 /// ```
 pub fn add_rust_compile_time_flag(flag: &str) {
+    add_rust_valid_compile_time_flag(flag);
     println!("cargo:rustc-cfg={flag}");
+}
+/// This doesn't actually activate a flag, it just tells rust that a flag is valid (otherwise there'll be a warning of "unexpected `cfg` condition name")
+pub fn add_rust_valid_compile_time_flag(flag: &str) {
+    println!("cargo:rustc-check-cfg=cfg({flag})");
 }
 /// Give out a compile time warning
 pub fn compile_warning<T: std::fmt::Display>(warning: T) {
